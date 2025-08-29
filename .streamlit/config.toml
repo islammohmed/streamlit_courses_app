@@ -1,0 +1,36 @@
+[theme]
+# Custom theme with purple-to-teal gradient colors
+# Inspired by modern dark themes with vibrant accents
+
+# Primary color - Purple tone for buttons, links, and interactive elements
+primaryColor = "#6A3CBC"
+
+# Background color - Dark base to match gradient
+backgroundColor = "#1E1E2F"
+
+# Secondary background - Softer variant for cards, sidebar, and panels
+secondaryBackgroundColor = "#2D2F47"
+
+# Text color - White for optimal readability on dark background
+textColor = "#FFFFFF"
+
+# Base theme - Using dark mode as foundation
+base = "dark"
+
+# Font - Modern, clean font family
+font = "sans serif"
+
+[server]
+# Optional: Disable file watcher for better performance in production
+fileWatcherType = "none"
+
+# Optional: Set port (uncomment if needed)
+# port = 8501
+
+[browser]
+# Optional: Automatically open browser when starting
+gatherUsageStats = false
+
+[logger]
+# Optional: Set logging level
+level = "info"

@@ -12,11 +12,21 @@ import zipfile
 import os
 from pathlib import Path
 import tempfile
+import base64
 import warnings
 warnings.filterwarnings('ignore')
 
 # Import configuration
 import config
+
+# Helper function for logo
+def get_base64_of_image(path):
+    """Convert image to base64 string for embedding in HTML"""
+    try:
+        with open(path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    except Exception as e:
+        return ""
 
 # Try to import docx2pdf for PDF generation
 try:
@@ -33,12 +43,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# RTL CSS styling
+# RTL CSS styling with enhanced purple-teal theme
 st.markdown("""
 <style>
+    /* Import Google Fonts for Arabic */
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
+    
+    /* Main layout and RTL support */
     .main {
         direction: rtl;
         text-align: right;
+        font-family: 'Cairo', sans-serif;
     }
     .stSelectbox > div > div {
         direction: rtl;
@@ -46,40 +61,229 @@ st.markdown("""
     .stDataFrame {
         direction: rtl;
     }
+    
+    /* Header with gradient background */
+    .header-container {
+        background: linear-gradient(135deg, #6A3CBC 0%, #2EC4B6 100%);
+        padding: 2rem 1rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 32px rgba(106, 60, 188, 0.3);
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .header-container::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: float 6s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translate(0, 0) rotate(0deg); }
+        50% { transform: translate(-20px, -10px) rotate(180deg); }
+    }
+    
+    .header-title {
+        color: white;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0.5rem 0;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        position: relative;
+        z-index: 2;
+    }
+    
+    .header-subtitle {
+        color: rgba(255,255,255,0.9);
+        font-size: 1.2rem;
+        font-weight: 400;
+        margin: 0;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .logo-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .logo-image {
+        width: 80px;
+        height: 80px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        background: rgba(255,255,255,0.1);
+        padding: 0.5rem;
+    }
+    
+    /* Enhanced metric cards */
     .metric-card {
-        background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 10px;
+        background: linear-gradient(135deg, #2D2F47 0%, #3A3D5C 100%);
+        border: 1px solid rgba(106, 60, 188, 0.3);
+        padding: 1.5rem;
+        border-radius: 15px;
         text-align: center;
         margin: 0.5rem 0;
+        box-shadow: 0 4px 20px rgba(106, 60, 188, 0.2);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
     }
+    
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #6A3CBC 0%, #2EC4B6 100%);
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(106, 60, 188, 0.4);
+    }
+    
     .metric-value {
-        font-size: 2rem;
-        font-weight: bold;
-        color: #1f77b4;
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2EC4B6;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
+    
     .metric-label {
-        font-size: 0.9rem;
-        color: #666;
+        font-size: 1rem;
+        color: rgba(255,255,255,0.8);
+        font-weight: 500;
     }
+    
+    /* Status indicators */
     .status-match {
-        color: #28a745;
+        color: #2EC4B6;
         font-weight: bold;
     }
     .status-missing {
-        color: #dc3545;
+        color: #FF6B6B;
         font-weight: bold;
     }
     .status-unused {
-        color: #ffc107;
+        color: #FFB347;
         font-weight: bold;
     }
+    
+    /* Headers */
     h1, h2, h3 {
         text-align: right;
         direction: rtl;
+        color: #FFFFFF;
+        font-family: 'Cairo', sans-serif;
     }
+    
+    h1 {
+        color: #6A3CBC;
+        font-weight: 700;
+    }
+    
+    h2 {
+        color: #2EC4B6;
+        font-weight: 600;
+    }
+    
+    /* Buttons enhancement */
     .stButton > button {
         width: 100%;
+        background: linear-gradient(135deg, #6A3CBC 0%, #2EC4B6 100%);
+        border: none;
+        border-radius: 10px;
+        color: white;
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(106, 60, 188, 0.3);
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(106, 60, 188, 0.4);
+    }
+    
+    /* Sidebar enhancement */
+    .css-1d391kg {
+        background: linear-gradient(180deg, #2D2F47 0%, #1E1E2F 100%);
+    }
+    
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 1rem;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background: linear-gradient(135deg, #2D2F47 0%, #3A3D5C 100%);
+        border-radius: 10px;
+        color: #FFFFFF;
+        border: 1px solid rgba(106, 60, 188, 0.3);
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #6A3CBC 0%, #2EC4B6 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(106, 60, 188, 0.3);
+    }
+    
+    /* Data tables */
+    .stDataFrame {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    /* Success/Error messages */
+    .stSuccess {
+        background: linear-gradient(135deg, #2EC4B6 0%, #20A39E 100%);
+        border: none;
+        border-radius: 10px;
+    }
+    
+    .stError {
+        background: linear-gradient(135deg, #FF6B6B 0%, #E55353 100%);
+        border: none;
+        border-radius: 10px;
+    }
+    
+    .stWarning {
+        background: linear-gradient(135deg, #FFB347 0%, #FF9F00 100%);
+        border: none;
+        border-radius: 10px;
+    }
+    
+    /* File uploader styling */
+    .stFileUploader {
+        border: 2px dashed rgba(106, 60, 188, 0.3);
+        border-radius: 10px;
+        padding: 1rem;
+        background: rgba(45, 47, 71, 0.3);
+    }
+    
+    /* Plotly charts enhancement */
+    .js-plotly-plot {
+        border-radius: 10px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -156,22 +360,44 @@ def extract_placeholders_from_word(docx_path):
     """
     Extract all placeholders from Word document
     Returns list of placeholders found
+    Safe version that handles table errors gracefully
     """
     try:
         doc = Document(docx_path)
         placeholders = set()
         
-        # Extract from paragraphs
+        # Extract from paragraphs (safe)
         for para in doc.paragraphs:
-            matches = re.findall(r'\{\{([^}]+)\}\}', para.text)
-            placeholders.update(matches)
+            try:
+                matches = re.findall(r'\{\{([^}]+)\}\}', para.text)
+                placeholders.update(matches)
+            except Exception as para_error:
+                continue
         
-        # Extract from tables
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    matches = re.findall(r'\{\{([^}]+)\}\}', cell.text)
-                    placeholders.update(matches)
+        # Extract from tables with enhanced error handling
+        try:
+            for table_idx, table in enumerate(doc.tables):
+                try:
+                    for row_idx, row in enumerate(table.rows):
+                        try:
+                            for cell_idx, cell in enumerate(row.cells):
+                                try:
+                                    # Safely access cell text
+                                    cell_text = cell.text
+                                    matches = re.findall(r'\{\{([^}]+)\}\}', cell_text)
+                                    placeholders.update(matches)
+                                except Exception as cell_error:
+                                    # Skip problematic cells (like grid_offset errors)
+                                    continue
+                        except Exception as row_error:
+                            # Skip problematic rows
+                            continue
+                except Exception as table_error:
+                    # Skip problematic tables
+                    continue
+        except Exception as tables_error:
+            # If table processing fails completely, continue with paragraphs only
+            st.warning("⚠️ تخطي معالجة الجداول بسبب خطأ في التنسيق")
         
         return list(placeholders)
     except Exception as e:
@@ -209,15 +435,12 @@ def build_mapping(row, df_columns):
     }
     
     # Build mapping from Excel data to Content Control tags
-    st.write("🔍 **Debug: Mapping Process**")
-    
     for excel_col, tag_name in excel_to_tag_mapping.items():
         value = ""
         
         # Try exact match first
         if excel_col in df_columns:
             value = str(row[excel_col]) if pd.notna(row[excel_col]) else ""
-            st.write(f"✅ Found exact match: '{excel_col}' -> '{value}'")
         else:
             # Try similar column names (with space variations)
             excel_col_clean = excel_col.strip().lower()
@@ -225,49 +448,31 @@ def build_mapping(row, df_columns):
             
             # Special handling for location field with extensive matching
             if 'مكان الانعقاد' in excel_col:
-                st.write(f"🔍 Looking for location field '{excel_col}'...")
                 for col in df_columns:
                     # Check for exact match (with or without trailing space)
                     if col == 'مكان الانعقاد ' or col == 'مكان الانعقاد':
                         value = str(row[col]) if pd.notna(row[col]) else ""
-                        st.write(f"🎯 Found exact location match: '{col}' -> '{value}'")
                         found_match = True
                         break
                     # Also check if column contains the location keywords
                     elif 'مكان' in str(col) and 'انعقاد' in str(col):
                         value = str(row[col]) if pd.notna(row[col]) else ""
-                        st.write(f"🎯 Found location match: '{col}' -> '{value}'")
                         found_match = True
                         break
-                
-                if not found_match:
-                    st.write(f"❌ No location field found. Available columns with 'مكان':")
-                    location_cols = [col for col in df_columns if 'مكان' in str(col)]
-                    for loc_col in location_cols:
-                        st.write(f"   - '{loc_col}' (length: {len(str(loc_col))})")
             
             # Special handling for lab field
             elif 'تحتاج لمعمل' in excel_col or 'معمل' in excel_col:
-                st.write(f"🔍 Looking for lab field '{excel_col}'...")
                 for col in df_columns:
                     if col == 'تحتاج لمعمل؟' or 'تحتاج لمعمل' in str(col):
                         value = str(row[col]) if pd.notna(row[col]) else ""
-                        st.write(f"🎯 Found exact lab match: '{col}' -> '{value}'")
                         found_match = True
                         break
-                
-                if not found_match:
-                    st.write(f"❌ No lab field found. Available columns with 'معمل':")
-                    lab_cols = [col for col in df_columns if 'معمل' in str(col)]
-                    for lab_col in lab_cols:
-                        st.write(f"   - '{lab_col}'")
             else:
                 # Regular matching for other fields
                 for col in df_columns:
                     col_clean = str(col).strip().lower()
                     if excel_col_clean == col_clean or excel_col_clean in col_clean or col_clean in excel_col_clean:
                         value = str(row[col]) if pd.notna(row[col]) else ""
-                        st.write(f"🔍 Found similar match: '{col}' -> '{value}'")
                         found_match = True
                         break
         
@@ -280,9 +485,6 @@ def build_mapping(row, df_columns):
         # Map to Content Control tag name (only if we have data)
         if value:
             mapping[tag_name] = value
-            st.write(f"✅ **MAPPED**: '{tag_name}' = '{value}'")
-        else:
-            st.write(f"❌ **NO DATA**: '{excel_col}' -> '{tag_name}'")
     
     return mapping
 
@@ -292,25 +494,16 @@ def generate_docx_from_template(template_path, mapping, output_name):
     With complete error recovery and safe table handling
     """
     try:
-        st.write("📄 Starting Word document generation...")
-        
         # Load template with extreme caution
         try:
             doc = Document(template_path)
-            st.write("✅ Template loaded successfully")
         except Exception as load_error:
             st.error(f"❌ خطأ في تحميل القالب: {str(load_error)}")
             return None
         
-        # Debug: Show what mapping we received
-        st.write("🔧 **Debug - Final Mapping**:")
-        for key, value in mapping.items():
-            st.write(f"  **{key}** -> '{value}'")
-        
         replacements_made = 0
         
         # Method 1: Safe Content Controls processing
-        st.write("🏷️ **Method 1: Processing Content Controls**")
         try:
             # Use safe iteration to avoid table errors
             content_controls_found = []
@@ -318,17 +511,20 @@ def generate_docx_from_template(template_path, mapping, output_name):
             # Find all content controls first without processing tables
             try:
                 for element in doc.element.body.iter():
-                    if element.tag.endswith('sdt'):  # Structured Document Tag
-                        try:
-                            tag_element = element.find('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}tag')
-                            if tag_element is not None:
-                                tag_value = tag_element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val')
-                                if tag_value:
-                                    content_controls_found.append((element, tag_value))
-                        except Exception as cc_find_error:
-                            continue
-                
-                st.write(f"🔍 Found {len(content_controls_found)} Content Controls")
+                    try:
+                        if element.tag.endswith('sdt'):  # Structured Document Tag
+                            try:
+                                tag_element = element.find('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}tag')
+                                if tag_element is not None:
+                                    tag_value = tag_element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val')
+                                    if tag_value:
+                                        content_controls_found.append((element, tag_value))
+                            except Exception as cc_find_error:
+                                # Skip problematic content controls
+                                continue
+                    except Exception as element_error:
+                        # Skip problematic elements
+                        continue
                 
                 # Now process the found content controls
                 for element, tag_value in content_controls_found:
@@ -338,65 +534,71 @@ def generate_docx_from_template(template_path, mapping, output_name):
                             
                             if data_value:
                                 # Find text elements within the content control
-                                text_elements = element.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t')
-                                
-                                if text_elements:
-                                    # Clear existing text
-                                    for text_elem in text_elements:
-                                        text_elem.text = ""
+                                try:
+                                    text_elements = element.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t')
                                     
-                                    # Set new text (data only)
-                                    if len(text_elements) > 0:
-                                        text_elements[0].text = data_value
-                                        replacements_made += 1
-                                        st.write(f"✅ Updated '{tag_value}' with: '{data_value}'")
+                                    if text_elements:
+                                        # Clear existing text
+                                        for text_elem in text_elements:
+                                            try:
+                                                text_elem.text = ""
+                                            except Exception:
+                                                continue
+                                        
+                                        # Set new text (data only)
+                                        if len(text_elements) > 0:
+                                            try:
+                                                text_elements[0].text = data_value
+                                                replacements_made += 1
+                                            except Exception:
+                                                continue
+                                except Exception as text_error:
+                                    # Skip if text element access fails
+                                    continue
                     except Exception as cc_update_error:
-                        st.warning(f"⚠️ Error updating content control '{tag_value}': {str(cc_update_error)}")
                         continue
                         
             except Exception as cc_method_error:
-                st.warning(f"⚠️ Content Controls method failed: {str(cc_method_error)}")
-                st.write("🔄 Switching to fallback method...")
-                
                 # Method 2: Safe text replacement fallback (avoid tables completely)
-                st.write("📝 **Method 2: Safe Text Replacement**")
                 try:
                     # Only process paragraphs, avoid tables to prevent grid_offset error
                     for paragraph in doc.paragraphs:
                         try:
                             original_text = paragraph.text
                             for tag_name, data_value in mapping.items():
-                                if tag_name in paragraph.text and data_value:
-                                    paragraph.text = paragraph.text.replace(tag_name, data_value)
-                                    replacements_made += 1
-                                    st.write(f"✅ Replaced '{tag_name}' in paragraph with: '{data_value}'")
+                                try:
+                                    if tag_name in paragraph.text and data_value:
+                                        paragraph.text = paragraph.text.replace(tag_name, data_value)
+                                        replacements_made += 1
+                                except Exception:
+                                    continue
                         except Exception as para_error:
                             continue
                             
                 except Exception as fallback_error:
-                    st.error(f"❌ All methods failed: {str(fallback_error)}")
+                    st.error(f"❌ فشل في معالجة المستند: {str(fallback_error)}")
         
         except Exception as processing_error:
-            st.error(f"❌ Error in document processing: {str(processing_error)}")
+            st.error(f"❌ خطأ في معالجة المستند: {str(processing_error)}")
         
-        st.success(f"✅ **Total updates made: {replacements_made}**")
+        # Show success message only if replacements were made
+        if replacements_made > 0:
+            st.success(f"✅ تم تحديث {replacements_made} عنصر بنجاح")
+        else:
+            st.warning("⚠️ لم يتم العثور على عناصر للتحديث")
         
         # Save to BytesIO
         try:
             doc_buffer = io.BytesIO()
             doc.save(doc_buffer)
             doc_buffer.seek(0)
-            st.write("💾 Document saved successfully")
             return doc_buffer
         except Exception as save_error:
-            st.error(f"❌ Error saving document: {str(save_error)}")
+            st.error(f"❌ خطأ في حفظ المستند: {str(save_error)}")
             return None
         
     except Exception as e:
         st.error(f"❌ خطأ عام في توليد المستند: {str(e)}")
-        st.write("**تفاصيل الخطأ:**")
-        import traceback
-        st.code(traceback.format_exc())
         return None
 
 def convert_docx_to_pdf(docx_buffer, output_name):
@@ -628,8 +830,14 @@ def build_dashboard(df):
             fig_bar = px.bar(status_data, x='الحالة', y='العدد', 
                            title="توزيع حالة الدورات",
                            color='الحالة',
-                           color_discrete_map={'منفذة': '#28a745', 'ملغاة': '#dc3545', 'مؤجلة': '#ffc107'})
-            fig_bar.update_layout(showlegend=False)
+                           color_discrete_map={'منفذة': '#2EC4B6', 'ملغاة': '#FF6B6B', 'مؤجلة': '#FFB347'})
+            fig_bar.update_layout(
+                showlegend=False,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='white'),
+                title_font=dict(size=16, color='#6A3CBC')
+            )
             st.plotly_chart(fig_bar, use_container_width=True)
         
         with col2:
@@ -653,7 +861,15 @@ def build_dashboard(df):
                         daily_courses.columns = ['التاريخ', 'عدد الدورات']
                         
                         fig_line = px.line(daily_courses, x='التاريخ', y='عدد الدورات',
-                                         title="عدد الدورات يومياً")
+                                         title="عدد الدورات يومياً",
+                                         color_discrete_sequence=['#6A3CBC'])
+                        fig_line.update_layout(
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            font=dict(color='white'),
+                            title_font=dict(size=16, color='#6A3CBC')
+                        )
+                        fig_line.update_traces(line=dict(width=3))
                         st.plotly_chart(fig_line, use_container_width=True)
     
     # Summary Table
@@ -905,12 +1121,39 @@ def main():
     """
     Main application function
     """
-    st.title("📚 نظام إدارة الدورات التدريبية")
-    st.markdown("---")
+    # Beautiful header with logo and gradient background
+    logo_path = "assets/logo.png"
+    
+    # Check if logo exists
+    if os.path.exists(logo_path):
+        # Create header with logo
+        st.markdown(f"""
+        <div class="header-container">
+            <div class="logo-container">
+                <img src="data:image/png;base64,{get_base64_of_image(logo_path)}" class="logo-image">
+            </div>
+            <h1 class="header-title">نظام إدارة الدورات التدريبية</h1>
+            <p class="header-subtitle">Training Courses Management System</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        # Fallback header without logo
+        st.markdown("""
+        <div class="header-container">
+            <h1 class="header-title">📚 نظام إدارة الدورات التدريبية</h1>
+            <p class="header-subtitle">Training Courses Management System</p>
+        </div>
+        """, unsafe_allow_html=True)
     
     # Sidebar for file uploads and settings
     with st.sidebar:
-        st.header("⚙️ الإعدادات")
+        # Enhanced sidebar header
+        st.markdown("""
+        <div style="text-align: center; padding: 1rem; background: linear-gradient(135deg, #6A3CBC 0%, #2EC4B6 100%); border-radius: 10px; margin-bottom: 1rem;">
+            <h2 style="color: white; margin: 0; font-size: 1.5rem;">⚙️ الإعدادات</h2>
+            <p style="color: rgba(255,255,255,0.8); margin: 0.5rem 0 0 0; font-size: 0.9rem;">إعدادات النظام والملفات</p>
+        </div>
+        """, unsafe_allow_html=True)
         
         # Check for default files first with complete error handling
         try:
@@ -918,13 +1161,18 @@ def main():
                 default_excel_path = config.EXCEL_FILE_PATH
                 default_template_path = config.TEMPLATE_FILE_PATH
                 
-                # Test template loading early to catch errors
+                # Test template loading early to catch errors safely
                 try:
+                    # Just test if we can open the document without processing its content
                     test_doc = Document(default_template_path)
+                    # Test basic access without table iteration
+                    _ = len(test_doc.paragraphs)
                     st.success("✅ قالب Word تم تحميله بنجاح")
+                    # Don't test tables here to avoid grid_offset errors
                 except Exception as template_test_error:
-                    st.error(f"❌ خطأ في قراءة قالب Word: {str(template_test_error)}")
-                    default_template_path = None
+                    st.warning(f"⚠️ تحذير من قالب Word: {str(template_test_error)}")
+                    st.info("🔄 سيتم تجربة القالب مع التعامل الآمن مع الأخطاء")
+                    # Don't set to None - still try to use it with safe processing
             else:
                 st.error("❌ خطأ في إعدادات الملفات")
                 default_excel_path = None
@@ -940,7 +1188,7 @@ def main():
         template_path = None
         
         # Try to load default Excel file if it exists
-        if os.path.exists(default_excel_path):
+        if default_excel_path and os.path.exists(default_excel_path):
             st.info(f"📊 تم العثور على ملف البيانات: {os.path.basename(default_excel_path)}")
             excel_path = default_excel_path
             available_sheets = get_available_sheets(excel_path)
@@ -1029,7 +1277,7 @@ def main():
                 pass
         
         # Check for default Word template
-        if os.path.exists(default_template_path):
+        if default_template_path and os.path.exists(default_template_path):
             st.info(f"📄 تم العثور على قالب Word: {os.path.basename(default_template_path)}")
             template_path = default_template_path
         
@@ -1076,16 +1324,13 @@ def main():
                 )
     
     # Main content tabs
-    tab1, tab2, tab3 = st.tabs(["📊 لوحة الإحصائيات", "📄 توليد النماذج", "🔍 المقارنة"])
+    tab1, tab2 = st.tabs(["📊 لوحة الإحصائيات", "📄 توليد النماذج"])
     
     with tab1:
         build_dashboard(excel_df)
     
     with tab2:
         build_form_generator(excel_df, template_path)
-    
-    with tab3:
-        build_comparison_view(excel_df, template_path)
     
     # Cleanup temporary files (only if they were uploaded, not default files)
     if excel_file and excel_path and excel_path != config.EXCEL_FILE_PATH:
