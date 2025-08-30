@@ -895,22 +895,54 @@ def build_form_generator(df, template_path):
         st.warning("يرجى رفع قالب Word أولاً")
         return
     
+
+    # --- FILTERS ---
+    filter_col1, filter_col2 = st.columns(2)
+    # Filter by audience
+    audience_col = None
+    for col in df.columns:
+        if 'الفئة المستهدفة' in str(col):
+            audience_col = col
+            break
+    if audience_col:
+        audience_options = ['الكل'] + sorted([str(x) for x in df[audience_col].dropna().unique()])
+        selected_audience = filter_col1.selectbox("فلترة حسب الفئة المستهدفة", audience_options)
+        if selected_audience != 'الكل':
+            df = df[df[audience_col] == selected_audience]
+
+    # Filter by course start date (day)
+    date_col = None
+    for col in df.columns:
+        if 'تاريخ بداية الدورة بالميلادي' in str(col):
+            date_col = col
+            break
+    selected_day = None
+    if date_col:
+        # Parse all values to datetime, including string formats like '14/9/2025'
+        parsed_dates = pd.to_datetime(df[date_col].astype(str), errors='coerce', dayfirst=True)
+        days = parsed_dates.dropna().dt.date.unique()
+        day_options = ['الكل'] + [day.strftime('%d/%m/%Y') for day in sorted(days)]
+        selected_day = filter_col2.selectbox("فلترة حسب يوم بداية الدورة", day_options)
+        if selected_day != 'الكل':
+            # Filter by selected day (string format)
+            df = df[pd.to_datetime(df[date_col].astype(str), errors='coerce', dayfirst=True).dt.strftime('%d/%m/%Y') == selected_day]
+
     # Pagination settings
     items_per_page = st.selectbox("عدد العناصر في الصفحة", [5, 10, 20, 50], index=1)
-    
+
     total_items = len(df)
-    total_pages = (total_items - 1) // items_per_page + 1
-    
+    total_pages = (total_items - 1) // items_per_page + 1 if total_items > 0 else 1
+
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         current_page = st.number_input("الصفحة", min_value=1, max_value=total_pages, value=1)
-    
+
     # Calculate start and end indices
     start_idx = (current_page - 1) * items_per_page
     end_idx = min(start_idx + items_per_page, total_items)
-    
+
     # Display current page data
-    page_df = df.iloc[start_idx:end_idx].copy()
+    page_df = df.iloc[start_idx:end_idx].copy() if total_items > 0 else pd.DataFrame()
     page_df.reset_index(drop=True, inplace=True)
     
     # Display data with generate buttons
