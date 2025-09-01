@@ -482,6 +482,22 @@ def build_mapping(row, df_columns):
         else:
             value = ""
         
+        # Special formatting for specific fields
+        if value and tag_name == 'مدتها':
+            # Add "يوم" after the number for duration field
+            try:
+                # Try to extract number and add "يوم"
+                number = str(value).strip()
+                if number.isdigit() or number.replace('.', '').isdigit():
+                    value = f"{number} يوم"
+                elif number:
+                    # If it's not a pure number, just add "يوم" if not already present
+                    if 'يوم' not in number:
+                        value = f"{number} يوم"
+            except:
+                # If any error, just use the original value
+                pass
+        
         # Map to Content Control tag name (only if we have data)
         if value:
             mapping[tag_name] = value
@@ -953,7 +969,7 @@ def build_form_generator(df, template_path):
     
     # Show data table with generate buttons
     for idx, row in page_df.iterrows():
-        with st.expander(f"السطر {start_idx + idx + 1}"):
+        with st.expander(f"استماره طرح الدوره {start_idx + idx + 1}"):
             col1, col2 = st.columns([3, 1])
             
             with col1:
@@ -968,7 +984,7 @@ def build_form_generator(df, template_path):
                     mapping = build_mapping(row, df.columns.tolist())
                     
                     # Generate DOCX
-                    output_name = f"نموذج_السطر_{start_idx + idx + 1}"
+                    output_name = f"استماره_طرح_الدوره_{start_idx + idx + 1}"
                     docx_buffer = generate_docx_from_template(template_path, mapping, output_name)
                     
                     if docx_buffer:
@@ -1006,7 +1022,7 @@ def build_form_generator(df, template_path):
                         mapping = build_mapping(row, df.columns.tolist())
                         
                         # Generate DOCX
-                        output_name = f"نموذج_السطر_{idx + 1}"
+                        output_name = f"استماره_طرح_الدوره_{idx + 1}"
                         docx_buffer = generate_docx_from_template(template_path, mapping, output_name)
                         
                         if docx_buffer:
