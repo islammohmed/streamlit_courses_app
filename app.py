@@ -845,7 +845,6 @@ def calculate_comprehensive_stats(df, selected_period='all', selected_year=None,
         'remote_courses': 0,
         'in_person_courses': 0,
         'hybrid_courses': 0,
-        'current_remote_courses': 0,
         'total_participants': 0,
         'total_training_hours': 0,
         'total_training_days': 0,
@@ -953,14 +952,6 @@ def calculate_comprehensive_stats(df, selected_period='all', selected_year=None,
             elif method == 'hybrid':
                 stats['hybrid_courses'] += 1
     
-    # Current remote courses (in_progress + remote)
-    if approval_status_col and notes_col:
-        for _, row in filtered_df.iterrows():
-            status = get_status_from_approval_column(row[approval_status_col])
-            method = get_delivery_method_from_notes(row[notes_col])
-            if status == 'in_progress' and method == 'remote':
-                stats['current_remote_courses'] += 1
-    
     # Participants, hours, and days
     if participants_col and participants_col in filtered_df.columns:
         try:
@@ -1035,24 +1026,24 @@ def create_kpi_cards(stats):
     with col2:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-value">{stats['current_remote_courses']}</div>
-            <div class="metric-label">دورات عن بُعد حالياً</div>
+            <div class="metric-value">{stats['in_person_courses']}</div>
+            <div class="metric-label">دورات حضورية</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col3:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-value">{stats['in_person_courses']}</div>
-            <div class="metric-label">دورات حضورية</div>
+            <div class="metric-value">{stats['total_training_days']}</div>
+            <div class="metric-label">إجمالي أيام التدريب</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col4:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-value">{stats['total_training_days']}</div>
-            <div class="metric-label">إجمالي أيام التدريب</div>
+            <div class="metric-value">{stats['in_person_courses']}</div>
+            <div class="metric-label">دورات حضورية</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1165,6 +1156,20 @@ def create_delivery_method_chart(stats):
     else:
         st.info("لا توجد بيانات لعرض توزيع طرق التدريب")
 
+def calculate_monthly_stats(df):
+    """
+    Calculate monthly statistics for export
+    """
+    stats = calculate_comprehensive_stats(df)
+    
+    return {
+        'total_planned': stats['total_courses'],
+        'executed': stats['confirmed_courses'],
+        'cancelled': stats['cancelled_courses'], 
+        'postponed': stats['postponed_courses'],
+        'total_training_days': stats['total_training_days']
+    }
+
 def build_enhanced_dashboard(df):
     """
     Build the enhanced dashboard that properly reads "حالة الاعتماد" data
@@ -1223,6 +1228,26 @@ def build_enhanced_dashboard(df):
         with col2:
             selected_date = st.date_input("التاريخ", datetime.now().date())
     
+    # Audience filter section
+    st.subheader("👥 فلترة حسب الفئة المستهدفة")
+    
+    # Find the target audience column
+    audience_col = None
+    for col in df.columns:
+        if 'الفئة المستهدفة' in str(col):
+            audience_col = col
+            break
+    
+    selected_audience = 'الكل'
+    if audience_col and not df.empty:
+        audience_options = ['الكل'] + sorted([str(x) for x in df[audience_col].dropna().unique()])
+        selected_audience = st.selectbox("اختر الفئة المستهدفة", audience_options)
+        
+        # Filter dataframe based on selected audience
+        if selected_audience != 'الكل':
+            df = df[df[audience_col] == selected_audience]
+            st.info(f"📋 تم تطبيق الفلتر: {selected_audience} ({len(df)} دورة)")
+    
     # Calculate comprehensive statistics
     stats = calculate_comprehensive_stats(
         df, period_type, selected_year, selected_month, selected_date
@@ -1259,7 +1284,6 @@ def build_enhanced_dashboard(df):
             'دورات تحت الإجراء',
             'دورات ملغاة',
             'دورات عن بُعد',
-            'دورات عن بُعد حالياً',
             'دورات حضورية',
             'إجمالي أيام التدريب'
         ],
@@ -1270,7 +1294,6 @@ def build_enhanced_dashboard(df):
             stats['in_progress_courses'],
             stats['cancelled_courses'],
             stats['remote_courses'],
-            stats['current_remote_courses'],
             stats['in_person_courses'],
             stats['total_training_days']
         ],
@@ -1280,7 +1303,7 @@ def build_enhanced_dashboard(df):
     # Calculate percentages
     total = stats['total_courses'] if stats['total_courses'] > 0 else 1
     for i, value in enumerate(summary_data['القيمة']):
-        if i < 8:  # For course-related metrics
+        if i < 7:  # For course-related metrics
             percentage = f"{(value / total * 100):.1f}%"
         else:  # For other metrics
             percentage = "-"
