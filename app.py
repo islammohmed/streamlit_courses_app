@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import calendar
 import openpyxl
 from docx import Document
 from docx.shared import Inches
@@ -659,252 +660,503 @@ def convert_docx_to_pdf(docx_buffer, output_name):
         st.warning(f"فشل في تحويل PDF: {str(e)}")
         return None
 
-# ========================= DASHBOARD FUNCTIONS =========================
+# ========================= ENHANCED DASHBOARD FUNCTIONS =========================
 
-def calculate_daily_stats(df, target_date):
+def get_status_from_approval_column(status_text):
     """
-    Calculate daily statistics for given date
+    Determine course status from "حالة الاعتماد" column values
+    """
+    if pd.isna(status_text):
+        return 'unknown'
+    
+    status_text = str(status_text).strip().lower()
+    
+    # Map the specific values from your Excel (handle different spellings)
+    if 'مؤكد' in status_text or 'موكد' in status_text:
+        return 'confirmed'
+    elif 'تاجيل' in status_text or 'تأجيل' in status_text or 'مؤجل' in status_text:
+        return 'postponed'
+    elif 'تحت الاجراء' in status_text or 'اجراء' in status_text or 'إجراء' in status_text:
+        return 'in_progress'
+    elif 'ملغ' in status_text or 'الغاء' in status_text or 'إلغاء' in status_text:
+        return 'cancelled'
+    else:
+        return 'unknown'
+
+def get_delivery_method_from_notes(notes_text):
+    """
+    Determine delivery method from "ملاحظات" column
+    Only "عن بعد" is considered remote, everything else is on-site
+    """
+    if pd.isna(notes_text):
+        return 'in_person'
+    
+    notes_text = str(notes_text).lower().strip()
+    
+    if 'عن بعد' in notes_text or 'عن بُعد' in notes_text:
+        return 'remote'
+    else:
+        return 'in_person'
+
+def calculate_comprehensive_stats(df, selected_period='all', selected_year=None, selected_month=None, selected_date=None):
+    """
+    Calculate comprehensive statistics using actual column names from your Excel
     """
     stats = {
-        'ongoing_courses': 0,
-        'starting_today': 0,
-        'ending_today': 0,
-        'cancelled_today': 0
+        'total_courses': 0,
+        'confirmed_courses': 0,
+        'postponed_courses': 0,
+        'in_progress_courses': 0,
+        'cancelled_courses': 0,
+        'unknown_courses': 0,
+        'remote_courses': 0,
+        'in_person_courses': 0,
+        'hybrid_courses': 0,
+        'current_remote_courses': 0,
+        'total_participants': 0,
+        'total_training_hours': 0,
+        'total_training_days': 0,
+        'period_label': ''
     }
     
     if df.empty:
         return stats
     
-    # Find date columns
+    # Find relevant columns - exact matching
     start_date_col = None
-    end_date_col = None
-    status_col = None
+    approval_status_col = None
+    notes_col = None
+    participants_col = None
+    hours_col = None
+    days_col = None
     
     for col in df.columns:
-        col_str = str(col).lower()
-        if 'بداية' in col_str or 'start' in col_str:
+        col_str = str(col).strip()  # Remove trailing spaces
+        if col_str == 'تاريخ بداية الدورة بالميلادي':
             start_date_col = col
-        elif 'نهاية' in col_str or 'end' in col_str:
-            end_date_col = col
-        elif 'حالة' in col_str or 'status' in col_str or 'وضع' in col_str:
-            status_col = col
+        elif col_str == 'حالة الاعتماد':
+            approval_status_col = col
+        elif col_str == 'ملاحظات':
+            notes_col = col
+        elif 'عدد' in col_str and ('متدرب' in col_str or 'مشارك' in col_str):
+            participants_col = col
+        elif 'ساعة' in col_str or 'ساعات' in col_str:
+            hours_col = col
+        elif col_str == 'عدد الايام':
+            days_col = col
     
-    if start_date_col and end_date_col:
-        for _, row in df.iterrows():
-            start_date = pd.to_datetime(row[start_date_col], errors='coerce')
-            end_date = pd.to_datetime(row[end_date_col], errors='coerce')
-            status = str(row[status_col]).lower() if status_col else ""
+    # Filter data based on selected period
+    filtered_df = df.copy()
+    
+    if start_date_col and selected_period != 'all':
+        # Convert dates - handle multiple formats
+        def parse_date_flexible(date_str):
+            if pd.isna(date_str):
+                return pd.NaT
             
-            if pd.notna(start_date) and pd.notna(end_date):
-                # Ongoing courses
-                if start_date.date() <= target_date <= end_date.date():
-                    stats['ongoing_courses'] += 1
-                
-                # Starting today
-                if start_date.date() == target_date:
-                    stats['starting_today'] += 1
-                
-                # Ending today
-                if end_date.date() == target_date:
-                    stats['ending_today'] += 1
-                
-                # Cancelled today (if status indicates cancellation)
-                if 'ملغ' in status or 'cancel' in status:
-                    stats['cancelled_today'] += 1
-    
-    return stats
-
-def calculate_monthly_stats(df):
-    """
-    Calculate monthly statistics
-    """
-    stats = {
-        'total_planned': len(df),
-        'executed': 0,
-        'cancelled': 0,
-        'postponed': 0,
-        'total_training_days': 0
-    }
-    
-    if df.empty:
-        return stats
-    
-    # Find relevant columns
-    status_col = None
-    start_date_col = None
-    end_date_col = None
-    
-    for col in df.columns:
-        col_str = str(col).lower()
-        if 'حالة' in col_str or 'status' in col_str or 'وضع' in col_str:
-            status_col = col
-        elif 'بداية' in col_str or 'start' in col_str:
-            start_date_col = col
-        elif 'نهاية' in col_str or 'end' in col_str:
-            end_date_col = col
-    
-    # Calculate status distribution
-    if status_col:
-        for _, row in df.iterrows():
-            status = str(row[status_col]).lower()
-            if 'منفذ' in status or 'executed' in status or 'مكتمل' in status:
-                stats['executed'] += 1
-            elif 'ملغ' in status or 'cancel' in status:
-                stats['cancelled'] += 1
-            elif 'مؤجل' in status or 'postpone' in status:
-                stats['postponed'] += 1
-    
-    # Calculate total training days
-    if start_date_col and end_date_col:
-        for _, row in df.iterrows():
-            start_date = pd.to_datetime(row[start_date_col], errors='coerce')
-            end_date = pd.to_datetime(row[end_date_col], errors='coerce')
+            date_str = str(date_str).strip()
             
-            if pd.notna(start_date) and pd.notna(end_date):
-                days = (end_date - start_date).days + 1
-                stats['total_training_days'] += max(0, days)
-    
-    return stats
-
-def build_dashboard(df):
-    """
-    Build the main dashboard with statistics and visualizations
-    """
-    st.header("📊 لوحة الإحصائيات")
-    
-    # Date selection
-    col1, col2 = st.columns(2)
-    with col1:
-        selected_date = st.date_input("اختر التاريخ", datetime.now().date())
-    with col2:
-        if not df.empty:
-            target_audience_col = None
-            for col in df.columns:
-                if 'جمهور' in str(col) or 'audience' in str(col).lower() or 'فئة' in str(col):
-                    target_audience_col = col
-                    break
+            # Try different date formats
+            for fmt in ['%d/%m/%Y', '%Y-%m-%d', '%d-%m-%Y', '%m/%d/%Y']:
+                try:
+                    return pd.to_datetime(date_str, format=fmt)
+                except:
+                    continue
             
-            if target_audience_col:
-                audiences = ['الكل'] + list(df[target_audience_col].dropna().unique())
-                selected_audience = st.selectbox("فلترة حسب الجمهور المستهدف", audiences)
-                
-                if selected_audience != 'الكل':
-                    df = df[df[target_audience_col] == selected_audience]
-    
-    # Daily Statistics
-    st.subheader("📅 إحصائيات يومية")
-    daily_stats = calculate_daily_stats(df, selected_date)
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{daily_stats['ongoing_courses']}</div>
-            <div class="metric-label">دورات جارية</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{daily_stats['starting_today']}</div>
-            <div class="metric-label">دورات تبدأ اليوم</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{daily_stats['ending_today']}</div>
-            <div class="metric-label">دورات تنتهي اليوم</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{daily_stats['cancelled_today']}</div>
-            <div class="metric-label">دورات ملغاة</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Monthly Statistics
-    st.subheader("📈 إحصائيات شهرية")
-    monthly_stats = calculate_monthly_stats(df)
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("إجمالي الدورات المخططة", monthly_stats['total_planned'])
-    with col2:
-        st.metric("دورات منفذة", monthly_stats['executed'])
-    with col3:
-        st.metric("دورات ملغاة", monthly_stats['cancelled'])
-    with col4:
-        st.metric("إجمالي أيام التدريب", monthly_stats['total_training_days'])
-    
-    # Visualizations
-    if not df.empty:
-        col1, col2 = st.columns(2)
+            # Fallback to pandas auto-parsing
+            try:
+                return pd.to_datetime(date_str, dayfirst=True)
+            except:
+                return pd.NaT
         
-        with col1:
-            st.subheader("توزيع حالة الدورات")
-            status_data = {
-                'الحالة': ['منفذة', 'ملغاة', 'مؤجلة'],
-                'العدد': [monthly_stats['executed'], monthly_stats['cancelled'], monthly_stats['postponed']]
-            }
-            fig_bar = px.bar(status_data, x='الحالة', y='العدد', 
-                           title="توزيع حالة الدورات",
-                           color='الحالة',
-                           color_discrete_map={'منفذة': '#2EC4B6', 'ملغاة': '#FF6B6B', 'مؤجلة': '#FFB347'})
-            fig_bar.update_layout(
-                showlegend=False,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='white'),
-                title_font=dict(size=16, color='#6A3CBC')
+        filtered_df['parsed_date'] = filtered_df[start_date_col].apply(parse_date_flexible)
+        
+        if selected_period == 'year' and selected_year:
+            filtered_df = filtered_df[filtered_df['parsed_date'].dt.year == selected_year]
+            stats['period_label'] = f"سنة {selected_year}"
+        elif selected_period == 'month' and selected_year and selected_month:
+            filtered_df = filtered_df[
+                (filtered_df['parsed_date'].dt.year == selected_year) &
+                (filtered_df['parsed_date'].dt.month == selected_month)
+            ]
+            month_name = calendar.month_name[selected_month]
+            stats['period_label'] = f"{month_name} {selected_year}"
+        elif selected_period == 'day' and selected_date:
+            selected_date = pd.to_datetime(selected_date)
+            filtered_df = filtered_df[filtered_df['parsed_date'].dt.date == selected_date.date()]
+            stats['period_label'] = f"يوم {selected_date.strftime('%d/%m/%Y')}"
+    
+    # Calculate basic stats
+    stats['total_courses'] = len(filtered_df)
+    
+    # Status distribution using "حالة الاعتماد"
+    if approval_status_col and approval_status_col in filtered_df.columns:
+        for _, row in filtered_df.iterrows():
+            original_status = row[approval_status_col]
+            status = get_status_from_approval_column(original_status)
+            
+            if status == 'confirmed':
+                stats['confirmed_courses'] += 1
+            elif status == 'postponed':
+                stats['postponed_courses'] += 1
+            elif status == 'in_progress':
+                stats['in_progress_courses'] += 1
+            elif status == 'cancelled':
+                stats['cancelled_courses'] += 1
+            else:
+                stats['unknown_courses'] += 1
+    else:
+        # If no approval status column found, mark all as unknown
+        stats['unknown_courses'] = stats['total_courses']
+    
+    # Delivery method distribution using "ملاحظات"
+    if notes_col and notes_col in filtered_df.columns:
+        for _, row in filtered_df.iterrows():
+            method = get_delivery_method_from_notes(row[notes_col])
+            if method == 'remote':
+                stats['remote_courses'] += 1
+            elif method == 'in_person':
+                stats['in_person_courses'] += 1
+            elif method == 'hybrid':
+                stats['hybrid_courses'] += 1
+    
+    # Current remote courses (in_progress + remote)
+    if approval_status_col and notes_col:
+        for _, row in filtered_df.iterrows():
+            status = get_status_from_approval_column(row[approval_status_col])
+            method = get_delivery_method_from_notes(row[notes_col])
+            if status == 'in_progress' and method == 'remote':
+                stats['current_remote_courses'] += 1
+    
+    # Participants, hours, and days
+    if participants_col and participants_col in filtered_df.columns:
+        try:
+            stats['total_participants'] = int(filtered_df[participants_col].fillna(0).sum())
+        except:
+            stats['total_participants'] = 0
+    
+    if hours_col and hours_col in filtered_df.columns:
+        try:
+            stats['total_training_hours'] = int(filtered_df[hours_col].fillna(0).sum())
+        except:
+            stats['total_training_hours'] = 0
+    
+    if days_col and days_col in filtered_df.columns:
+        try:
+            stats['total_training_days'] = int(filtered_df[days_col].fillna(0).sum())
+        except:
+            stats['total_training_days'] = 0
+    
+    return stats
+
+def create_kpi_cards(stats):
+    """
+    Create KPI cards with enhanced styling using actual data
+    """
+    # Row 1: Main Course Metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{stats['total_courses']}</div>
+            <div class="metric-label">إجمالي الدورات</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{stats['confirmed_courses']}</div>
+            <div class="metric-label">دورات مؤكدة</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{stats['postponed_courses']}</div>
+            <div class="metric-label">دورات مؤجلة</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{stats['in_progress_courses']}</div>
+            <div class="metric-label">تحت الإجراء</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Row 2: Remote Learning Metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{stats['remote_courses']}</div>
+            <div class="metric-label">دورات عن بُعد</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{stats['current_remote_courses']}</div>
+            <div class="metric-label">دورات عن بُعد حالياً</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{stats['in_person_courses']}</div>
+            <div class="metric-label">دورات حضورية</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{stats['total_training_days']}</div>
+            <div class="metric-label">إجمالي أيام التدريب</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+def create_approval_status_distribution_chart(stats):
+    """
+    Create approval status distribution pie chart using actual data
+    """
+    status_data = {
+        'الحالة': [],
+        'العدد': [],
+        'اللون': []
+    }
+    
+    # Add data only for non-zero values
+    status_mapping = [
+        ('مؤكدة', stats['confirmed_courses'], '#2EC4B6'),
+        ('مؤجلة', stats['postponed_courses'], '#FFB347'),
+        ('تحت الإجراء', stats['in_progress_courses'], '#6A3CBC'),
+        ('ملغاة', stats['cancelled_courses'], '#FF6B6B'),
+        ('غير محددة', stats['unknown_courses'], '#A8E6CF')
+    ]
+    
+    for label, count, color in status_mapping:
+        if count > 0:
+            status_data['الحالة'].append(label)
+            status_data['العدد'].append(count)
+            status_data['اللون'].append(color)
+    
+    if len(status_data['العدد']) > 0:
+        fig = px.pie(
+            values=status_data['العدد'],
+            names=status_data['الحالة'],
+            title="توزيع حالة اعتماد الدورات",
+            color_discrete_sequence=status_data['اللون']
+        )
+        
+        fig.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='white', size=12),
+            title_font=dict(size=16, color='#6A3CBC'),
+            showlegend=True,
+            legend=dict(
+                orientation="v",
+                yanchor="middle",
+                y=0.5,
+                xanchor="left",
+                x=1.01
             )
-            st.plotly_chart(fig_bar, use_container_width=True)
+        )
         
-        with col2:
-            st.subheader("عدد الدورات عبر الأيام")
-            # Create sample data for courses per day
-            if len(df) > 0:
-                # Find start date column
-                start_date_col = None
-                for col in df.columns:
-                    if 'بداية' in str(col).lower() or 'start' in str(col).lower():
-                        start_date_col = col
-                        break
-                
-                if start_date_col:
-                    df_dates = df.copy()
-                    df_dates[start_date_col] = pd.to_datetime(df_dates[start_date_col], errors='coerce')
-                    df_dates = df_dates.dropna(subset=[start_date_col])
-                    
-                    if not df_dates.empty:
-                        daily_courses = df_dates.groupby(df_dates[start_date_col].dt.date).size().reset_index()
-                        daily_courses.columns = ['التاريخ', 'عدد الدورات']
-                        
-                        fig_line = px.line(daily_courses, x='التاريخ', y='عدد الدورات',
-                                         title="عدد الدورات يومياً",
-                                         color_discrete_sequence=['#6A3CBC'])
-                        fig_line.update_layout(
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            paper_bgcolor='rgba(0,0,0,0)',
-                            font=dict(color='white'),
-                            title_font=dict(size=16, color='#6A3CBC')
-                        )
-                        fig_line.update_traces(line=dict(width=3))
-                        st.plotly_chart(fig_line, use_container_width=True)
+        fig.update_traces(
+            textposition='inside',
+            textinfo='percent+label',
+            hovertemplate='<b>%{label}</b><br>العدد: %{value}<br>النسبة: %{percent}<extra></extra>'
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("لا توجد بيانات لعرض توزيع حالة الاعتماد")
+
+def create_delivery_method_chart(stats):
+    """
+    Create delivery method distribution chart using "ملاحظات" data
+    """
+    method_data = {
+        'طريقة التدريب': [],
+        'العدد': [],
+        'اللون': []
+    }
     
-    # Summary Table
-    st.subheader("📋 ملخص الدورات الرئيسية")
-    if not df.empty:
-        # Show ongoing and cancelled courses
-        summary_df = df.head(10)  # Show first 10 courses
-        st.write(summary_df.to_html(escape=False), unsafe_allow_html=True)
+    # Add data only for non-zero values
+    method_mapping = [
+        ('عن بُعد', stats['remote_courses'], '#6A3CBC'),
+        ('حضوري', stats['in_person_courses'], '#2EC4B6'),
+        ('مختلط', stats['hybrid_courses'], '#FFB347')
+    ]
+    
+    for label, count, color in method_mapping:
+        if count > 0:
+            method_data['طريقة التدريب'].append(label)
+            method_data['العدد'].append(count)
+            method_data['اللون'].append(color)
+    
+    if len(method_data['العدد']) > 0:
+        fig = px.bar(
+            x=method_data['العدد'],
+            y=method_data['طريقة التدريب'],
+            title="توزيع طرق التدريب (من ملاحظات)",
+            orientation='h',
+            color=method_data['طريقة التدريب'],
+            color_discrete_sequence=method_data['اللون']
+        )
+        
+        fig.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='white'),
+            title_font=dict(size=16, color='#6A3CBC'),
+            showlegend=False,
+            xaxis_title="عدد الدورات",
+            yaxis_title=""
+        )
+        
+        fig.update_traces(
+            hovertemplate='<b>%{y}</b><br>عدد الدورات: %{x}<extra></extra>'
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("لا توجد بيانات لعرض توزيع طرق التدريب")
+
+def build_enhanced_dashboard(df):
+    """
+    Build the enhanced dashboard that properly reads "حالة الاعتماد" data
+    """
+    st.header("📊 لوحة التحليلات الاحترافية")
+    
+    # Period selection controls
+    st.subheader("🗓️ اختيار الفترة الزمنية")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        period_type = st.selectbox(
+            "نوع الفترة",
+            ['all', 'year', 'month', 'day'],
+            format_func=lambda x: {
+                'all': 'جميع الفترات',
+                'year': 'سنة محددة',
+                'month': 'شهر محدد',
+                'day': 'يوم محدد'
+            }[x]
+        )
+    
+    selected_year = None
+    selected_month = None
+    selected_date = None
+    
+    if period_type in ['year', 'month']:
+        with col2:
+            # Get available years from data
+            if not df.empty and 'تاريخ بداية الدورة بالميلادي' in df.columns:
+                df_temp = df.copy()
+                df_temp['parsed_date'] = df_temp['تاريخ بداية الدورة بالميلادي'].apply(
+                    lambda x: pd.to_datetime(str(x), errors='coerce', dayfirst=True) if pd.notna(x) else pd.NaT
+                )
+                available_years = sorted(df_temp['parsed_date'].dt.year.dropna().unique())
+                
+                if available_years:
+                    selected_year = st.selectbox("السنة", available_years, index=len(available_years)-1)
+    
+    if period_type == 'month' and selected_year:
+        with col3:
+            months = {
+                1: 'يناير', 2: 'فبراير', 3: 'مارس', 4: 'أبريل',
+                5: 'مايو', 6: 'يونيو', 7: 'يوليو', 8: 'أغسطس',
+                9: 'سبتمبر', 10: 'أكتوبر', 11: 'نوفمبر', 12: 'ديسمبر'
+            }
+            selected_month = st.selectbox(
+                "الشهر",
+                list(months.keys()),
+                format_func=lambda x: months[x],
+                index=8  # Default to September
+            )
+    
+    if period_type == 'day':
+        with col2:
+            selected_date = st.date_input("التاريخ", datetime.now().date())
+    
+    # Calculate comprehensive statistics
+    stats = calculate_comprehensive_stats(
+        df, period_type, selected_year, selected_month, selected_date
+    )
+    
+    # Display period label
+    if stats['period_label']:
+        st.info(f"📅 البيانات المعروضة: {stats['period_label']}")
+    
+    # KPI Cards
+    st.subheader("📈 المؤشرات الرئيسية")
+    create_kpi_cards(stats)
+    
+    # Charts section
+    st.subheader("📊 الرسوم البيانية التحليلية")
+    
+    # First row of charts
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        create_approval_status_distribution_chart(stats)
+    
+    with col2:
+        create_delivery_method_chart(stats)
+    
+    # Summary statistics table
+    st.subheader("📋 ملخص تفصيلي")
+    
+    summary_data = {
+        'المؤشر': [
+            'إجمالي الدورات',
+            'دورات مؤكدة',
+            'دورات مؤجلة', 
+            'دورات تحت الإجراء',
+            'دورات ملغاة',
+            'دورات عن بُعد',
+            'دورات عن بُعد حالياً',
+            'دورات حضورية',
+            'إجمالي أيام التدريب'
+        ],
+        'القيمة': [
+            stats['total_courses'],
+            stats['confirmed_courses'],
+            stats['postponed_courses'],
+            stats['in_progress_courses'],
+            stats['cancelled_courses'],
+            stats['remote_courses'],
+            stats['current_remote_courses'],
+            stats['in_person_courses'],
+            stats['total_training_days']
+        ],
+        'النسبة المئوية': []
+    }
+    
+    # Calculate percentages
+    total = stats['total_courses'] if stats['total_courses'] > 0 else 1
+    for i, value in enumerate(summary_data['القيمة']):
+        if i < 8:  # For course-related metrics
+            percentage = f"{(value / total * 100):.1f}%"
+        else:  # For other metrics
+            percentage = "-"
+        summary_data['النسبة المئوية'].append(percentage)
+    
+    summary_df = pd.DataFrame(summary_data)
+    
+    # Display with styling using HTML table to avoid pyarrow dependency
+    st.markdown(summary_df.to_html(escape=False, index=False), unsafe_allow_html=True)
 
 # ========================= FORM GENERATOR FUNCTIONS =========================
 
@@ -1386,7 +1638,7 @@ def main():
     tab1, tab2 = st.tabs(["📊 لوحة الإحصائيات", "📄 توليد النماذج"])
     
     with tab1:
-        build_dashboard(excel_df)
+        build_enhanced_dashboard(excel_df)
     
     with tab2:
         build_form_generator(excel_df, template_path)
