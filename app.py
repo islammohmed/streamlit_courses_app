@@ -376,6 +376,61 @@ st.markdown("""
         box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
 </style>
+
+<script>
+// JavaScript to aggressively hide "Created by" elements on mobile
+function hideCreatedByElements() {
+    // Hide any element containing "Created by" text
+    const allElements = document.querySelectorAll('*');
+    allElements.forEach(element => {
+        if (element.textContent && element.textContent.includes('Created by')) {
+            element.style.display = 'none';
+            element.style.visibility = 'hidden';
+            element.remove();
+        }
+        if (element.textContent && element.textContent.includes('Hosted with Streamlit')) {
+            element.style.display = 'none';
+            element.style.visibility = 'hidden';
+            element.remove();
+        }
+    });
+    
+    // Hide common footer selectors
+    const footerSelectors = [
+        '[data-testid="stBottom"]',
+        '[data-testid="stFooter"]',
+        '.css-1outpf7',
+        '.css-16huue1',
+        '.css-1wbqy5l',
+        '.st-emotion-cache-1wbqy5l',
+        '.st-emotion-cache-16huue1',
+        'footer',
+        '.streamlit-footer'
+    ];
+    
+    footerSelectors.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+            el.style.display = 'none';
+            el.style.visibility = 'hidden';
+        });
+    });
+}
+
+// Run immediately
+hideCreatedByElements();
+
+// Run when DOM changes (for dynamic content)
+const observer = new MutationObserver(hideCreatedByElements);
+observer.observe(document.body, { childList: true, subtree: true });
+
+// Run on load and resize
+window.addEventListener('load', hideCreatedByElements);
+window.addEventListener('resize', hideCreatedByElements);
+
+// Run every 500ms to catch any late-loading elements
+setInterval(hideCreatedByElements, 500);
+</script>
 """, unsafe_allow_html=True)
 
 # ========================= DATA LOADING FUNCTIONS =========================
