@@ -60,6 +60,22 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     .stDeployButton {display: none;}
+    .stActionButton {display: none;}
+    
+    /* Hide any "Created by" or attribution text */
+    .css-hi6a2p {display: none;}
+    .css-18e3th9 {display: none;}
+    .css-1d391kg .css-12oz5g7 {display: none;}
+    [data-testid="stSidebarNavItems"] {display: none;}
+    [data-testid="stSidebarNav"] {display: none;}
+    
+    /* Hide any footer or attribution elements */
+    .css-1y4p8pa {display: none;}
+    .css-1dp5vir {display: none;}
+    
+    /* Additional hiding for any remaining branding */
+    .css-1rs6os {display: none;}
+    .css-17eq0hr {display: none;}
     
     /* Main layout and RTL support */
     .main {
