@@ -40,7 +40,12 @@ st.set_page_config(
     page_title="نظام إدارة الدورات التدريبية",
     page_icon="📚",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': None
+    }
 )
 
 # RTL CSS styling with enhanced purple-teal theme
@@ -48,6 +53,12 @@ st.markdown("""
 <style>
     /* Import Google Fonts for Arabic */
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
+    
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stDeployButton {display: none;}
     
     /* Main layout and RTL support */
     .main {
