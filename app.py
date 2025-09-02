@@ -56,26 +56,64 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
     
     /* Hide Streamlit branding */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    .stDeployButton {display: none;}
-    .stActionButton {display: none;}
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    header {visibility: hidden !important;}
+    .stDeployButton {display: none !important;}
+    .stActionButton {display: none !important;}
     
     /* Hide any "Created by" or attribution text */
-    .css-hi6a2p {display: none;}
-    .css-18e3th9 {display: none;}
-    .css-1d391kg .css-12oz5g7 {display: none;}
-    [data-testid="stSidebarNavItems"] {display: none;}
-    [data-testid="stSidebarNav"] {display: none;}
+    .css-hi6a2p {display: none !important;}
+    .css-18e3th9 {display: none !important;}
+    .css-1d391kg .css-12oz5g7 {display: none !important;}
+    [data-testid="stSidebarNavItems"] {display: none !important;}
+    [data-testid="stSidebarNav"] {display: none !important;}
     
     /* Hide any footer or attribution elements */
-    .css-1y4p8pa {display: none;}
-    .css-1dp5vir {display: none;}
+    .css-1y4p8pa {display: none !important;}
+    .css-1dp5vir {display: none !important;}
     
     /* Additional hiding for any remaining branding */
-    .css-1rs6os {display: none;}
-    .css-17eq0hr {display: none;}
+    .css-1rs6os {display: none !important;}
+    .css-17eq0hr {display: none !important;}
+    
+    /* Mobile specific hiding */
+    @media screen and (max-width: 768px) {
+        #MainMenu {visibility: hidden !important;}
+        footer {visibility: hidden !important;}
+        header {visibility: hidden !important;}
+        .stDeployButton {display: none !important;}
+        .stActionButton {display: none !important;}
+        
+        /* Mobile specific selectors for "Created by" */
+        .css-1y4p8pa {display: none !important;}
+        .css-1dp5vir {display: none !important;}
+        .css-hi6a2p {display: none !important;}
+        .css-18e3th9 {display: none !important;}
+        [data-testid="stSidebarNavItems"] {display: none !important;}
+        [data-testid="stSidebarNav"] {display: none !important;}
+        
+        /* Hide mobile menu and navigation */
+        .css-1lcbmhc {display: none !important;}
+        .css-1y0tads {display: none !important;}
+        .css-17ziqus {display: none !important;}
+        .css-1544g2n {display: none !important;}
+        
+        /* Hide any mobile branding footer */
+        .stApp > footer {display: none !important;}
+        .main-footer {display: none !important;}
+        .streamlit-footer {display: none !important;}
+        
+        /* Additional mobile-specific branding elements */
+        .css-1rs6os {display: none !important;}
+        .css-17eq0hr {display: none !important;}
+        .css-12oz5g7 {display: none !important;}
+        .css-1d391kg {display: none !important;}
+        
+        /* Hide any "Made with Streamlit" text on mobile */
+        [data-testid="stBottomBlockContainer"] {display: none !important;}
+        [data-testid="stFooter"] {display: none !important;}
+    }
     
     /* Main layout and RTL support */
     .main {
