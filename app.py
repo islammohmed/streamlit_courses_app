@@ -1034,16 +1034,16 @@ def create_kpi_cards(stats):
     with col3:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-value">{stats['total_training_days']}</div>
-            <div class="metric-label">إجمالي أيام التدريب</div>
+            <div class="metric-value">{stats['cancelled_courses']}</div>
+            <div class="metric-label">دورات ملغاة</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col4:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-value">{stats['in_person_courses']}</div>
-            <div class="metric-label">دورات حضورية</div>
+            <div class="metric-value">{stats['total_training_days']}</div>
+            <div class="metric-label">إجمالي أيام التدريب</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1174,7 +1174,7 @@ def build_enhanced_dashboard(df):
     """
     Build the enhanced dashboard that properly reads "حالة الاعتماد" data
     """
-    st.header("📊 لوحة التحليلات الاحترافية")
+    st.header("📊 لوحة متابعة الدورات التدريبيه")
     
     # Period selection controls
     st.subheader("🗓️ اختيار الفترة الزمنية")
@@ -1320,7 +1320,7 @@ def build_form_generator(df, template_path):
     """
     Build the accreditation form generator interface
     """
-    st.header("📄 مولد نماذج الاعتماد")
+    st.header("📄 اصدار استمارة طرح الدوره")
     
     if df.empty:
         st.warning("لا توجد بيانات لعرضها")
@@ -1398,7 +1398,7 @@ def build_form_generator(df, template_path):
                     st.text(f"{key}: {value}")
             
             with col2:
-                if st.button(f"⬇️ توليد النموذج", key=f"generate_{start_idx + idx}"):
+                if st.button(f"⬇️ اصدار استمارة الطرح", key=f"generate_{start_idx + idx}"):
                     # Generate mapping
                     mapping = build_mapping(row, df.columns.tolist())
                     
@@ -1430,7 +1430,7 @@ def build_form_generator(df, template_path):
     
     # Bulk generation option
     st.subheader("📦 التوليد المجمع")
-    if st.button("توليد جميع النماذج وتحميل ملف ZIP"):
+    if st.button("اصدار جميع استمارات طرح الدوره"):
         with st.spinner("جاري توليد النماذج..."):
             zip_buffer = io.BytesIO()
             
@@ -1453,7 +1453,7 @@ def build_form_generator(df, template_path):
                                 if pdf_content:
                                     zip_file.writestr(f"{output_name}.pdf", pdf_content)
                     except Exception as e:
-                        st.warning(f"خطأ في توليد النموذج للسطر {idx + 1}: {str(e)}")
+                        st.warning(f"خطأ في اصدار استمارة الطرح للسطر {idx + 1}: {str(e)}")
             
             zip_buffer.seek(0)
             
@@ -1791,7 +1791,7 @@ def main():
                 )
     
     # Main content tabs
-    tab1, tab2 = st.tabs(["📊 لوحة الإحصائيات", "📄 توليد النماذج"])
+    tab1, tab2 = st.tabs(["📊 لوحة الإحصائيات", "📄 اصدار الاستمارات"])
     
     with tab1:
         build_enhanced_dashboard(excel_df)
