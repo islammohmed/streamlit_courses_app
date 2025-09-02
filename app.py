@@ -113,6 +113,30 @@ st.markdown("""
         /* Hide any "Made with Streamlit" text on mobile */
         [data-testid="stBottomBlockContainer"] {display: none !important;}
         [data-testid="stFooter"] {display: none !important;}
+        
+        /* Target the specific mobile footer container from your screenshot */
+        .css-1outpf7 {display: none !important;}
+        .css-16huue1 {display: none !important;}
+        .css-1v0mbdj {display: none !important;}
+        .css-1wbqy5l {display: none !important;}
+        
+        /* Hide the entire bottom container on mobile */
+        div[data-testid="stBottom"] {display: none !important;}
+        div[data-testid="stBottomContainer"] {display: none !important;}
+        
+        /* Hide any element containing "Created by" text */
+        div:contains("Created by") {display: none !important;}
+        span:contains("Created by") {display: none !important;}
+        p:contains("Created by") {display: none !important;}
+        
+        /* Hide streamlit cloud footer */
+        .st-emotion-cache-1wbqy5l {display: none !important;}
+        .st-emotion-cache-16huue1 {display: none !important;}
+        .st-emotion-cache-1outpf7 {display: none !important;}
+        
+        /* Additional emotion cache classes for mobile */
+        [class*="emotion-cache"] div:contains("Created") {display: none !important;}
+        [class*="st-emotion"] div:contains("Created") {display: none !important;}
     }
     
     /* Main layout and RTL support */
